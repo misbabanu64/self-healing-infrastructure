@@ -1,0 +1,17 @@
+---
+- name: Recover NGINX application
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Restart NGINX container
+      ansible.builtin.command:
+        cmd: docker restart self-healing-nginx
+
+    - name: Verify NGINX container is running
+      ansible.builtin.command:
+        cmd: docker inspect --format={{ '{{' }}.State.Running{{ '}}' }} self-healing-nginx
+      register: nginx_status
+      changed_when: false
+      failed_when: nginx_status.stdout != "true"

@@ -1,0 +1,11 @@
+groups:
+  - name: self-healing-alerts
+    rules:
+      - alert: ApplicationDown
+        expr: probe_success{job="blackbox"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Self-Healing Application is DOWN"
+          description: "NGINX application is not responding to HTTP health checks."
