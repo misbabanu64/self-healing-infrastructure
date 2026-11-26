@@ -1,154 +1,201 @@
-# Self-Healing Infrastructure with Prometheus, Alertmanager & Ansible
+# Self-Healing Infrastructure
+### Automated Application Failure Detection & Recovery
+
+A practical DevOps project that monitors an NGINX web application, detects service failure, raises an alert, and automatically recovers the application using Ansible.
+
+> **Project outcome:** A simulated NGINX outage was detected by Prometheus, forwarded through Alertmanager to a Flask webhook, and recovered by an Ansible playbook. Recovery verification completed with `failed=0`.
+
+---
 
 ## Project Overview
 
-This project demonstrates a self-healing infrastructure workflow that monitors an NGINX application, detects service failures, generates alerts, and automatically recovers the application using Ansible.
+In traditional environments, an application failure may require an administrator to notice the issue and restart the service manually.
 
-The project is implemented in a local Ubuntu environment using Docker containers.
+This project demonstrates a monitoring-to-recovery workflow that reduces manual intervention:
 
-## Objective
+**Detect → Alert → Automate → Recover → Verify**
 
-To reduce manual intervention during application failures by combining monitoring, alerting, and automated recovery.
-
-## Technologies Used
-
-- Ubuntu on WSL
-- Docker
-- NGINX
-- Prometheus
-- Blackbox Exporter
-- Alertmanager
-- Python Flask
-- Ansible
-- Shell scripting
+The application is hosted in Docker containers inside a local Ubuntu environment running through WSL.
 
 ## Architecture
 
-```text
-                 NGINX Application
-                        |
-                        v
-                Blackbox Exporter
-                        |
-                        v
-                   Prometheus
-                        |
-                 ApplicationDown
-                        |
-                        v
-                  Alertmanager
-                        |
-                        v
-                 Recovery Webhook
-                  (Flask/Python)
-                        |
-                        v
-                  Ansible Playbook
-                        |
-                        v
-                Restart NGINX Container
-                        |
-                        v
-                 Service Recovered
+```mermaid
+flowchart TD
+    A["NGINX Web Application"] --> B["Blackbox Exporter"]
+    B --> C["Prometheus"]
+    C --> D{"ApplicationDown Alert"}
+    D --> E["Alertmanager"]
+    E --> F["Flask Recovery Webhook"]
+    F --> G["Ansible Playbook"]
+    G --> H["Restart NGINX Container"]
+    H --> I["Verify Container Running"]
+    I --> J["Service Recovered"]
 ```
 
-## Project Workflow
+## Technology Stack
 
-1. NGINX runs inside a Docker container.
-2. Blackbox Exporter checks the application's HTTP availability.
-3. Prometheus collects probe metrics and evaluates alert rules.
-4. When the application becomes unavailable, Prometheus triggers the `ApplicationDown` alert.
-5. Alertmanager sends the alert to the Flask recovery webhook.
-6. The webhook executes the Ansible recovery playbook.
-7. Ansible restarts the NGINX container and verifies that it is running.
+| Technology | Role in this project |
+|---|---|
+| Ubuntu / WSL | Local Linux environment |
+| Docker | Runs the application and monitoring components |
+| NGINX | Sample web application |
+| Blackbox Exporter | Checks HTTP availability |
+| Prometheus | Collects probe metrics and evaluates alert rules |
+| Alertmanager | Routes the `ApplicationDown` alert |
+| Python / Flask | Receives the alert through a webhook |
+| Ansible | Automates container restart and verification |
+| Git / GitHub | Version control and project hosting |
 
-## Key Features
+## How the Self-Healing Workflow Works
 
-- HTTP availability monitoring
-- Application failure detection
-- Prometheus alert rule
-- Alertmanager webhook integration
-- Automated NGINX container restart
-- Ansible-based recovery
-- Recovery verification
-- Failure simulation and recovery testing
+1. NGINX serves the sample web application.
+2. Blackbox Exporter sends an HTTP probe to the application.
+3. Prometheus collects the `probe_success` metric.
+4. When the probe fails, the `ApplicationDown` alert is triggered.
+5. Alertmanager sends the alert to the recovery webhook.
+6. The Flask webhook invokes the Ansible recovery playbook.
+7. Ansible restarts the NGINX container.
+8. Ansible verifies that the container is running.
+
+The alert rule uses a 15-second pending period before firing.
+
+## Monitoring & Recovery Components
+
+### Prometheus
+- Scrapes the Blackbox Exporter.
+- Loads the `ApplicationDown` alert rule.
+- Detects application unavailability through `probe_success`.
+
+### Alertmanager
+- Receives alerts from Prometheus.
+- Routes the alert to the recovery webhook.
+
+### Recovery Webhook
+- Built with Python and Flask.
+- Receives the Alertmanager HTTP request.
+- Executes the Ansible recovery playbook.
+
+### Ansible
+- Restarts the NGINX Docker container.
+- Checks the container's running state.
+- Reports task results through the play recap.
+
+## Container Ports
+
+| Component | Local port |
+|---|---:|
+| NGINX application | 8081 |
+| Prometheus | 9090 |
+| Alertmanager | 9093 |
+| Blackbox Exporter | 9115 |
+| Recovery Webhook | 5000 |
 
 ## Project Structure
 
 ```text
 self-healing-infrastructure/
-├── app/
-├── ansible/
-│   └── recovery.yml
 ├── alertmanager/
 │   └── alertmanager.yml
+├── ansible/
+│   └── recovery.yml
+├── app/
+│   ├── Dockerfile
+│   └── index.html
 ├── blackbox/
+│   └── blackbox.yml
 ├── prometheus/
-│   ├── prometheus.yml
-│   └── alerts.yml
+│   ├── alerts.yml
+│   └── prometheus.yml
 ├── recovery/
+│   ├── Dockerfile
 │   └── webhook.py
 ├── screenshots/
+│   ├── 1-NGINX application running.PNG
+│   ├── 2-Prometheus target UP.PNG
+│   ├── 3-Failure detection probe_success = 0.PNG
+│   ├── 4-Prometheus ApplicationDown rule loaded.PNG
+│   └── 5-Automatic recovery successful.PNG
 ├── docs/
+│   └── PROJECT_INTERVIEW_QA.md
 ├── README.md
 └── .gitignore
 ```
 
-## Failure Detection and Recovery Test
+## Project Demonstration
 
-The recovery workflow was tested by stopping the NGINX container.
+The following screenshots are from the project implementation and testing.
 
-Expected behavior:
+### 1. NGINX Application Running
+![NGINX application running](screenshots/1-NGINX%20application%20running.PNG)
 
-- Prometheus detects the failed HTTP probe.
-- The `ApplicationDown` alert is generated.
-- Alertmanager sends the alert to the recovery webhook.
-- The webhook executes the Ansible playbook.
-- Ansible restarts the NGINX container.
-- The playbook verifies that the container is running.
+### 2. Prometheus Target UP
+![Prometheus target UP](screenshots/2-Prometheus%20target%20UP.PNG)
 
-## Test Result
+### 3. Failure Detection
+The `probe_success` metric becomes `0` when the application is unavailable.
 
-The automatic recovery test completed successfully.
+![Failure detection](screenshots/3-Failure%20detection%20probe_success%20%3D%200.PNG)
 
-Ansible play recap:
+### 4. ApplicationDown Alert Rule
+![ApplicationDown alert rule loaded](screenshots/4-Prometheus%20ApplicationDown%20rule%20loaded.PNG)
+
+### 5. Automatic Recovery — Successful
+The webhook received the alert, Ansible restarted NGINX, and the verification task passed.
+
+![Automatic recovery successful](screenshots/5-Automatic%20recovery%20successful.PNG)
+
+## Recovery Test Result
+
+During testing, the NGINX container was stopped to simulate an application failure.
+
+The recovery webhook log showed:
 
 ```text
+ApplicationDown alert received
+
+TASK [Restart NGINX container]
+changed: [localhost]
+
+TASK [Verify NGINX container is running]
+ok: [localhost]
+
+PLAY RECAP
 ok=2
 changed=1
 unreachable=0
 failed=0
 ```
 
-The webhook received the `ApplicationDown` alert, executed the recovery playbook, and returned HTTP 200 for the alert request.
+**Result:** The alert was received and the recovery playbook completed successfully with zero failed tasks.
 
-## Screenshots and Evidence
+## Project Interview Preparation
 
-The `screenshots/` directory contains evidence of:
+Project-focused interview questions and answers are available here:
 
-- NGINX application running
-- Prometheus target status
-- Failure detection
-- Prometheus alert rule
-- Automatic recovery execution
+➡️ [Self-Healing Infrastructure — Interview Questions & Answers](docs/PROJECT_INTERVIEW_QA.md)
 
-## Learning Outcomes
+The questions are selected from the DevOps interview-question set provided with the internship project and answered in the context of this implementation.
 
-- Understanding monitoring and alerting workflows
-- Configuring Prometheus scrape targets and alert rules
-- Integrating Alertmanager with a webhook
-- Automating recovery using Ansible
-- Testing service failure and recovery
-- Working with Docker containers and networking
+## Key Learning Outcomes
 
-## Limitations
+- Application uptime monitoring using Prometheus
+- HTTP health checking with Blackbox Exporter
+- Alert rule configuration and failure detection
+- Alertmanager webhook integration
+- Automated recovery using Ansible
+- Docker container management and networking
+- Failure simulation and recovery verification
+- Git version control and GitHub project documentation
 
-This is a local learning and demonstration project. The Flask webhook uses a development server and is not intended for production deployment.
+## Security & Limitations
 
-The recovery webhook has access to the Docker socket, which provides powerful control over the Docker host. It must remain restricted to a trusted local environment and should not be exposed publicly.
+- This is a local learning and demonstration project, not a production deployment.
+- The Flask development server is used for the local webhook.
+- The recovery webhook has access to the Docker socket. This grants powerful control over the Docker host, so the webhook must remain restricted to a trusted local environment and must not be exposed publicly.
+- The project demonstrates recovery of a single NGINX container; it does not claim production-grade high availability or multi-node failover.
 
 ## Conclusion
 
-This project demonstrates how monitoring, alerting, and configuration automation can work together to detect application failures and recover a service automatically.
+This project demonstrates how monitoring, alerting, and automation can be integrated into a self-healing workflow.
 
-It provides practical experience with Prometheus, Alertmanager, Docker, Flask, and Ansible in a self-healing infrastructure workflow.
+Prometheus detects application failure, Alertmanager routes the alert, and Ansible performs and verifies the recovery action. The successful failure simulation provides practical evidence of the complete alert-to-recovery process.
